@@ -53,9 +53,9 @@ def create_model():
         MaxPooling2D((2, 2)),
         Flatten(),
         Dense(64, activation='relu'),
-        Dense(5 + 4, activation='sigmoid')  # 5 klas + 4 wartości bbox (xmin, ymin, xmax, ymax)
+        Dense(5, activation='softmax')
     ])
-    model.compile(optimizer='adam', loss='mean_squared_error', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     return model
 
 
@@ -73,18 +73,11 @@ valid_labels = []
 for img, lbl in zip(images, labels):
     if lbl[0] is not None:
         valid_images.append(img)
-        valid_labels.append(lbl)
+        valid_labels.append(lbl[0])
 
 # Przygotowanie danych do treningu
 images_resized = np.array([cv2.resize(image, image_size) for image in valid_images])
-labels_resized = []
-for lbl in valid_labels:
-    class_id, bbox = lbl
-    label_array = np.zeros(5 + 4)  # 5 klas + 4 wartości bbox
-    label_array[int(class_id)] = 1  # One-hot encoding dla klasy
-    label_array[5:] = bbox.flatten()  # Dodanie bbox
-    labels_resized.append(label_array)
-labels_resized = np.array(labels_resized)
+labels_resized = np.array(valid_labels)  # Przyjmujemy, że pierwsza etykieta jest główną klasą
 
 # Sprawdzenie, czy liczba obrazów i etykiet jest taka sama
 assert len(images_resized) == len(labels_resized), "Liczba obrazów i etykiet nie jest zgodna!"
@@ -92,16 +85,6 @@ assert len(images_resized) == len(labels_resized), "Liczba obrazów i etykiet ni
 # Trening modelu
 model = create_model()
 model.fit(images_resized, labels_resized, epochs=1, batch_size=32)
-
-
-# Funkcja do rysowania prostokątów na klatkach wideo
-def draw_bounding_boxes(frame, bboxes, class_id):
-    class_names = ['over_extrusion', 'spaghetti', 'stringing', 'under_extrusion', 'warping']
-    for bbox in bboxes:
-        xmin, ymin, xmax, ymax = bbox
-        cv2.rectangle(frame, (int(xmin), int(ymin)), (int(xmax), int(ymax)), (0, 255, 0), 2)
-        cv2.putText(frame, class_names[int(class_id)], (int(xmin), int(ymin) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9,
-                    (0, 255, 0), 2)
 
 
 # Funkcja do przechwytywania wideo i predykcji
@@ -118,11 +101,11 @@ def video_capture_and_predict(model, video_url):
 
         # Predykcja
         predictions = model.predict(frame_expanded)
-        predicted_class = np.argmax(predictions[0][:5])  # Przewidywanie klasy
-        predicted_bboxes = predictions[0][5:].reshape(-1, 4)  # Przewidywanie bbox
+        predicted_class = np.argmax(predictions[0])
 
-        # Rysowanie prostokątów na klatce
-        draw_bounding_boxes(frame, predicted_bboxes, predicted_class)
+        # Wyświetlanie wyniku na obrazie
+        class_names = ['over_extrusion', 'spaghetti', 'stringing', 'under_extrusion', 'warping']
+        cv2.putText(frame, class_names[predicted_class], (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         # Wyświetlanie klatki
         cv2.imshow('Video', frame)
