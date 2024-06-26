@@ -1,0 +1,16 @@
+names:
+- over_extrusion
+- spaghetti
+- stringing
+- under_extrusion
+- warping
+nc: 5
+roboflow:
+  license: CC BY 4.0
+  project: failure-detection-eitbv
+  url: https://universe.roboflow.com/failuredetection/failure-detection-eitbv/dataset/1
+  version: 1
+  workspace: failuredetection
+test: ../test/images
+train: Failure-Detection-1/train/images
+val: Failure-Detection-1/valid/images
